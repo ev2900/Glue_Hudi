@@ -21,14 +21,36 @@ job.init(args['JOB_NAME'], args)
 # Read the example data
 #
 
-# ----- Read from Glue Catalog ----
+# Option #1 ----- Create a Sample Data in this Script ----
 
+data = [
+        ("1", "Chris", "2020-01-01", datetime.strptime('2020-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')),
+        ("2", "Will", "2020-01-01", datetime.strptime('2020-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')),
+        ("3", "Emma", "2020-01-01", datetime.strptime('2020-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')),
+        ("4", "John", "2020-01-01", datetime.strptime('2020-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')),
+        ("5", "Eric", "2020-01-01", datetime.strptime('2020-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')),
+        ("6", "Adam", "2020-01-01", datetime.strptime('2020-01-01 00:00:00', '%Y-%m-%d %H:%M:%S'))
+]
+
+schema = StructType([
+        StructField("id", StringType(), False),
+        StructField("name", StringType(), False), 
+        StructField("create_date", StringType(), False),             
+        StructField("last_update_time", TimestampType(), False)
+])
+
+inputDf = spark.createDataFrame(data=data,schema=schema)
+
+# Option #2 ----- Read from Glue Catalog ----
+
+'''
 input_Dynamic_Frame = glueContext.create_dynamic_frame.from_catalog(database = "hudi-glue", table_name = "yellow_cab_input_data", transformation_ctx = "transformation_0")
 inputDf = input_Dynamic_Frame.toDF()
 inputDf = inputDf.withColumn("pk_col",monotonically_increasing_id() + 1)
+'''
 
-# ----- Read directly from S3 ----
-
+# Option #3 ----- Read directly from S3 ----
+'''
 # Schema for NYC Taxi Data
 yt_schema = StructType([
     StructField("vendorid",IntegerType(),True),
@@ -53,8 +75,26 @@ yt_schema = StructType([
 ])
 
 # Read the data
-# inputDf = spark.read.schema(yt_schema).option("header", "true").csv("s3://hudi-chrisshark-glue/yellow_cab_input_data/yellow_tripdata_2020-01.csv").withColumn("pk_col",monotonically_increasing_id() + 1)
+inputDf = spark.read.schema(yt_schema).option("header", "true").csv("s3://hudi-chrisshark-glue/yellow_cab_input_data/yellow_tripdata_2020-01.csv").withColumn("pk_col",monotonically_increasing_id() + 1)
+'''
 
+# ----- If you are using Option 1 for sample data use the configurations below
+# Set hudi options
+hudiOptions = {
+    'className' : 'org.apache.hudi',
+    'hoodie.datasource.hive_sync.use_jdbc':'false',
+    'hoodie.datasource.write.precombine.field': 'last_update_time',
+    'hoodie.datasource.write.recordkey.field': 'id',
+    'hoodie.table.name': 'copy_on_write_glue',
+    'hoodie.consistency.check.enabled': 'true',
+    'hoodie.datasource.hive_sync.database': 'default',
+    'hoodie.datasource.hive_sync.table': 'copy_on_write_glue',
+    'hoodie.datasource.hive_sync.enable': 'true',
+    'path': 's3://hudi-chrisshark-glue/copy_on_write_glue'
+}
+
+# ----- If you are using Option 2 or 3 for sample data use the configurations below
+'''
 # Set hudi options
 hudiOptions = {
     'className' : 'org.apache.hudi',
@@ -68,6 +108,7 @@ hudiOptions = {
     'hoodie.datasource.hive_sync.enable': 'true',
     'path': 's3://hudi-chrisshark-glue/copy_on_write_glue'
 }
+'''
 
 unpartitionDataConfig = {
     'hoodie.datasource.hive_sync.partition_extractor_class': 'org.apache.hudi.hive.NonPartitionedExtractor',
@@ -75,8 +116,7 @@ unpartitionDataConfig = {
 }
 
 initLoadConfig = {
-    'hoodie.bulkinsert.shuffle.parallelism': 68,
-    'hoodie.datasource.write.operation': 'bulk_insert'
+    'hoodie.datasource.write.operation': 'insert'
 }
 
 combinedConf = {**hudiOptions, **unpartitionDataConfig, **initLoadConfig}
