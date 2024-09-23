@@ -1,6 +1,6 @@
 # Hudi on AWS Glue
 
-<img width="85" alt="map-user" src="https://img.shields.io/badge/views-488-green"> <img width="125" alt="map-user" src="https://img.shields.io/badge/unique visits-125-green">
+<img width="85" alt="map-user" src="https://img.shields.io/badge/views-490-green"> <img width="125" alt="map-user" src="https://img.shields.io/badge/unique visits-125-green">
 
 Apache Hudi examples designed to be run on AWS Glue via. Glue Jobs.
 
